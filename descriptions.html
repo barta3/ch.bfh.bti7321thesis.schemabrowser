@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="bootstrap-3.3.6-dist/css/bootstrap.min.css">
     <script src="bootstrap-3.3.6-dist/js/bootstrap.min.js"></script>
     <script src="config.js" type="text/javascript"></script>
+    <!--<script src="EventSubscription.js" type="text/javascript"></script>-->
+    <script src="EventSubscription-compiled.js" type="text/javascript"></script>
+
 </head>
 <body>
 
@@ -48,7 +51,7 @@
     </div>
     <div class="col-md-6">
 
-        <div id="commands">
+        <div id="doc">
             <div id="chart_div" style="width: 400px; height: 120px;"></div>
 
 
@@ -60,8 +63,9 @@
 <script type="text/javascript">
 
     var schemas = {};
+    var subscriptions = {};
 
-    var client = new Paho.MQTT.Client(host, port, "/", "descBrowser");
+    var client = new Paho.MQTT.Client(host, port, '/', 'descBrowser');
     client.onMessageArrived = onMessage;
     client.onconnectionlost = onDisconnect;
     function onConnect() {
@@ -72,7 +76,7 @@
     client.connect({onSuccess: onConnect});
 
     function onMessage(message) {
-        //console.log(message.destinationName + " - " + message.payloadString);
+        console.log(message.destinationName + " - " + message.payloadString);
         var topics = message.destinationName.split("/");
         var deviceType = topics[3];
         schemas[deviceType] = message.payloadString;
@@ -88,27 +92,28 @@
 
                                     var json = JSON.parse(schemas[this.id]);
 
-                                    $('#commands').text('');
+                                    $('#doc').text('');
 
                                     //console.log(json.commandDescription.commands);
 
                                     // TODO: meta infos (version , etc).
                                     //$('#commands').text(json.id).append(' - ').append(json.version);
 
-                                    $('#commands').append('<h2>State</h2>');
+                                    $('#doc').append('<h2>State</h2>');
                                     json.stateDescription.states.forEach(function (state) {
-                                        $('#commands').append(renderState(state));
+                                        $('#doc').append(renderState(state));
                                     });
 
-                                    $('#commands').append('<h2>Events</h2>');
+                                    $('#doc').append('<h2>Events</h2>');
                                     json.eventDescription.events.forEach(function (event) {
-                                        $('#commands').append(renderEvent(event)).append('<br>');
+                                        $('#doc').append(renderEvent(event)).append('<br>');
                                     });
 
-                                    $('#commands').append('<h2>Commands</h2>');
+                                    $('#doc').append('<h2>Commands</h2>');
                                     json.commandDescription.commands.forEach(function (cmd) {
-                                        $('#commands').append(renderCmd(cmd)).append('<br>');
+                                        $('#doc').append(renderCmd(cmd)).append('<br>');
                                     });
+                                    evtHandler();
                                 })
                 ));
 
@@ -130,7 +135,7 @@
                 //console.log(value);
                 res += key + '<br>';
                 //console.log(value);
-                if(value.hasOwnProperty('min')) {
+                if (value.hasOwnProperty('min')) {
                     res += renderRange(value);
                 } else {
                     res += renderPresets(value);
@@ -142,9 +147,17 @@
 
         function renderEvent(event) {
             //console.log('Event: ' + event.name);
-            var res = '<strong>' + event.name + '</strong> <br>';
+            var eventName = event.name;
+            var res = '<strong>' + eventName + '</strong> <br>';
             res += event.desc + '<br>';
             res += renderRange(event.range);
+
+            res += '<form class="form-inline">';
+            res += '    <div class="form-group">';
+            res += '        <button data-id="' + eventName + '" class="btn btn-default evt" type="button">Subscribe</button>';
+            res += '        <input id="' + eventName + '"type="text" class="form-control">';
+            res += '    </div>';
+            res += '</form>';
 
             return res;
         }
@@ -152,9 +165,9 @@
 
     function renderPresets(presets) {
         console.log(presets);
-        var res  =  '';
+        var res = '';
         $.each(presets, function (index, value) {
-           res += value + ' ';
+            res += value + ' ';
         });
 
         return res + '<br>';
@@ -175,6 +188,37 @@
     function onDisconnect(reason) {
         console.log("disconnected - " + reason);
         alert("disconnected - " + reason);
+    }
+
+    function evtHandler() {
+        $('.evt').click(function () {
+            //alert( "Handler for .click() called." );
+            //subscribe();
+            var eventName = $(this).data('id');
+
+            var sub;
+            if (!(eventName in subscriptions)) {
+                sub = new Subscription();
+                subscriptions[eventName] = sub;
+            } else {
+                sub = subscriptions[eventName];
+            }
+
+            // TODO: topic übergeben
+
+
+            console.log($(this).text());
+            $(this).toggleClass("active");
+            if ($(this).text() === 'Subscribe') {
+                sub.subscribe(eventName);
+                $(this).text('Unsubscribe');
+            } else {
+                $(this).text('Subscribe');
+                sub.unsubscribe();
+            }
+
+
+        });
     }
 </script>
 </body>
