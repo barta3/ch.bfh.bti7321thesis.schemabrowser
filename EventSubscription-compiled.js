@@ -7,43 +7,42 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 var Subscription = (function () {
     function Subscription() {
         _classCallCheck(this, Subscription);
+
+        this.client2 = new Paho.MQTT.Client(host, port, "eventSubscr_" + parseInt(Math.random() * 100, 10));
     }
+    // TODO: topic specification
 
     _createClass(Subscription, [{
         key: "subscribe",
         value: function subscribe(eventName) {
+            var self = this;
             var options = {
                 timeout: 3,
-                onSuccess: function onSuccess() {
+                onSuccess: function onSuccess(message) {
                     console.log("mqtt subscribe to event " + eventName);
-
-                    // TODO define topic
-                    client2.subscribe('+/+/+/Temperature IR Bricklet/qC1/events/' + eventName, { qos: 1 });
+                    self.client2.subscribe('+/+/+/Temperature IR Bricklet/qC1/events/' + eventName);
                 },
                 onFailure: function onFailure(message) {
                     console.log("Connection failed: " + message.errorMessage);
                 }
             };
 
-            var client2 = new Paho.MQTT.Client(host, port, "eventSubscr_" + parseInt(Math.random() * 100, 10));
-            client2.onConnectionLost = function (responseObject) {
+            this.client2.onConnectionLost = function (responseObject) {
                 console.log("connection lost: " + responseObject.errorMessage);
             };
-            client2.onMessageArrived = function (message) {
+            this.client2.onMessageArrived = function (message) {
                 console.log(message.destinationName, ' -- ', message.payloadString);
                 $('#' + eventName).val(message.payloadString);
             };
 
-            $.getScript('config.js', function () {
-                console.log('mqtt connecting to event: ' + this.eventName + ' ...');
-                client2.connect(options);
-            });
+            console.log('mqtt connecting to event: ' + this.eventName + ' ...');
+            this.client2.connect(options);
         }
     }, {
         key: "unsubscribe",
-        value: function unsubscribe() {
-            // TODO: find a way to access client
-            Subscription.client2.unsubscribe('#');
+        value: function unsubscribe(eventName) {
+            this.client2.unsubscribe('+/+/+/Temperature IR Bricklet/qC1/events/' + eventName);
+            this.client2.disconnect();
         }
     }]);
 
