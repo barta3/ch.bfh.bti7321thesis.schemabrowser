@@ -8,6 +8,14 @@
     <!-- Latest compiled and minified CSS -->
     <link rel="stylesheet" href="bootstrap-3.3.6-dist/css/bootstrap.min.css">
     <script src="bootstrap-3.3.6-dist/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" type="text/css" href="//cdn.datatables.net/1.10.10/css/jquery.dataTables.css">
+
+    <!-- esprima required only for !!js/function -->
+    <!--<script src="https://cdn.rawgit.com/jquery/esprima/2.7.1/esprima.js"></script>-->
+    <script src="js-yaml/js-yaml.js"></script>
+
+
     <script src="config.js" type="text/javascript"></script>
     <!--<script src="EventSubscription.js" type="text/javascript"></script>-->
     <script src="EventSubscription-compiled.js" type="text/javascript"></script>
@@ -33,17 +41,28 @@
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
             <ul class="nav navbar-nav">
                 <li><a href="index.html">Topic Tree<span class="sr-only">(current)</span></a></li>
-                <li class="active"><a href="descriptions.html">Description Browser</a></li>
+                <li class="active"><a href="descriptions.html">Device Browser</a></li>
             </ul>
         </div><!-- /.navbar-collapse -->
     </div><!-- /.container-fluid -->
 </nav>
 
-<div id="list" class="row">
-    <div class="col-md-12">
-        Schemas:
-        <ul></ul>
+<div class="row">
+
+    <div id="table" class="col-md-12">
+        <table id="deviceTable" data-role="table" class="table table-hover">
+            <thead>
+            <tr>
+                <th>Application ID</th>
+                <th>Column 2</th>
+                <th>Column 3</th>
+                <th>Device Type</th>
+                <th>Device ID</th>
+            </thead>
+            <tbody></tbody>
+        </table>
     </div>
+
 </div>
 <div class="row">
     <div id="detail" class="col-md-6">
@@ -51,11 +70,7 @@
     </div>
     <div class="col-md-6">
 
-        <div id="doc">
-            <div id="chart_div" style="width: 400px; height: 120px;"></div>
-
-
-        </div>
+        <div id="doc"></div>
     </div>
 </div>
 
@@ -69,98 +84,119 @@
     client.onMessageArrived = onMessage;
     client.onconnectionlost = onDisconnect;
     function onConnect() {
-        client.subscribe('+/+/+/+/schema/#', onMessage);
+        client.subscribe('+/+/+/+/+/schema/yaml', onMessage);
         console.log("MQTT connected");
     }
 
     client.connect({onSuccess: onConnect});
 
     function onMessage(message) {
-        console.log(message.destinationName + " - " + message.payloadString);
+//        console.log(message.destinationName + " - " + message.payloadString);
         var topics = message.destinationName.split("/");
+
+        var fulltopic = message.destinationName;
+
+        var baseInfo = topics[0] + ' - ' + topics[1] + ' - ' + topics[2] + ' - ';
+        console.log(baseInfo);
         var deviceType = topics[3];
-        schemas[deviceType] = message.payloadString;
+        var devId = topics[4];
 
-        // TODO: Avoid duplicate <li>s
-        $('#list ul').append(
-                $('<li>').append(
-                        $('<a>').attr({href: '#', id: deviceType}).append(deviceType)
-                                .click(function (e) {
 
-                                    console.log(this.id);
-                                    $('#txt').val(schemas[this.id]);
-
-                                    var json = JSON.parse(schemas[this.id]);
-
-                                    $('#doc').text('');
-
-                                    //console.log(json.commandDescription.commands);
-
-                                    // TODO: meta infos (version , etc).
-                                    //$('#commands').text(json.id).append(' - ').append(json.version);
-
-                                    $('#doc').append('<h2>State</h2>');
-                                    json.stateDescription.states.forEach(function (state) {
-                                        $('#doc').append(renderState(state));
-                                    });
-
-                                    $('#doc').append('<h2>Events</h2>');
-                                    json.eventDescription.events.forEach(function (event) {
-                                        $('#doc').append(renderEvent(event)).append('<br>');
-                                    });
-
-                                    $('#doc').append('<h2>Commands</h2>');
-                                    json.commandDescription.commands.forEach(function (cmd) {
-                                        $('#doc').append(renderCmd(cmd)).append('<br>');
-                                    });
-                                    evtHandler();
-                                })
-                ));
-
-        function renderState(state) {
-            var res = '<strong>' + state.topic + '</strong> <br>';
-            res += state.desc + '<br>';
-            res += renderRange(state.range);
-            return res + '<br>';
+         if(fulltopic in schemas) {
+            schemas[fulltopic] = message.payloadString;
+            return;
         }
+        schemas[fulltopic] = message.payloadString;
+
+        var a = '<a href="#" onclick="deviceClick(\'' + fulltopic + '\')">'+ topics[4] + '</a>';
+
+        var row = '<tr><td>'+ topics[0] + '</td>'+
+                '<td>'+ topics[1] + '</td>'+
+                '<td>'+ topics[2] + '</td>'+
+                '<td>'+ topics[3] + '</td>'+
+                '<td>' + a + '</td>';
+
+        $('#deviceTable > tbody:last-child').append(row);
 
 
-        function renderCmd(cmd) {
-            //console.log(cmd);
-            var res = '<strong>' + cmd.name + '</strong> <br>';
 
-            res += 'Linked state: ' + cmd.linkedState + '<br>';
+    }
 
-            $.each(cmd.params, function (key, value) {
-                //console.log(value);
-                res += key + '<br>';
-                //console.log(value);
-                if (value.hasOwnProperty('min')) {
-                    res += renderRange(value);
-                } else {
-                    res += renderPresets(value);
-                }
-            });
+    function deviceClick(fulltopic) {
+        console.log('table click');
+        console.log(fulltopic);
+        var devId = fulltopic.split('/')[4];
+        $('#txt').val(schemas[fulltopic]);
 
-            return res + '<br>';
-        }
+        var json = jsyaml.load(schemas[fulltopic]);
+////    var json = JSON.parse(schemas[this.id]);
 
-        function renderEvent(event) {
-            //console.log('Event: ' + event.name);
-            var eventName = event.name;
-            var res = '<strong>' + eventName + '</strong> <br>';
-            res += event.desc + '<br>';
-            res += renderRange(event.range);
+        $('#doc').text('');
 
-            res += '<form class="form-inline">';
-            res += '    <div class="form-group">';
-            res += '        <button data-id="' + eventName + '" class="btn btn-default evt" type="button">Subscribe</button>';
-            res += '        <input id="' + eventName + '"type="text" class="form-control">';
-            res += '    </div>';
-            res += '</form>';
+        // TODO: meta infos (version , etc).
+        //$('#commands').text(json.id).append(' - ').append(json.version);
 
-            return res;
-        }
+        $('#doc').append('<h2>State</h2>');
+        json.stateDescription.states.forEach(function (state) {
+            $('#doc').append(renderState(state));
+        });
+
+        $('#doc').append('<h2>Events</h2>');
+        json.eventDescription.events.forEach(function (event) {
+            $('#doc').append(renderEvent(event, devId)).append('<br>');
+        });
+
+        $('#doc').append('<h2>Commands</h2>');
+        json.commandDescription.commands.forEach(function (cmd) {
+            $('#doc').append(renderCmd(cmd)).append('<br>');
+        });
+        evtHandler();
+
+    }
+
+    function renderState(state) {
+        var res = '<strong>' + state.topic + '</strong> <br>';
+        res += state.desc + '<br>';
+        res += renderRange(state.range);
+        return res + '<br>';
+    }
+
+
+    function renderCmd(cmd) {
+        //console.log(cmd);
+        var res = '<strong>' + cmd.name + '</strong> <br>';
+
+        res += 'Linked state: ' + cmd.linkedState + '<br>';
+
+        $.each(cmd.params, function (key, value) {
+            //console.log(value);
+            res += key + '<br>';
+            //console.log(value);
+            if (value.hasOwnProperty('min')) {
+                res += renderRange(value);
+            } else {
+                res += renderPresets(value);
+            }
+        });
+
+        return res + '<br>';
+    }
+
+    function renderEvent(event, devId) {
+        //console.log('Event: ' + event.name);
+        var eventName = event.name;
+        var res = '<strong>' + eventName + '</strong> <br>';
+        res += event.desc + '<br>';
+        res += renderRange(event.range);
+
+        res += '<form class="form-inline">';
+        res += '    <div class="form-group">';
+        res += '        <button data-id="' + eventName + '" data-device="' + devId + '" class="btn btn-default evt" type="button">Subscribe</button>';
+        res += '        <input id="' + eventName + '"type="text" class="form-control">';
+        res += '    </div>';
+        res += '</form>';
+
+        return res;
     }
 
     function renderPresets(presets) {
@@ -192,9 +228,8 @@
 
     function evtHandler() {
         $('.evt').click(function () {
-            //alert( "Handler for .click() called." );
-            //subscribe();
             var eventName = $(this).data('id');
+            var deviceType = $(this).data('device');
 
             var sub;
             if (!(eventName in subscriptions)) {
@@ -207,14 +242,14 @@
             // TODO: topic übergeben
 
 
-            console.log($(this).text());
+            //console.log($(this).text());
             $(this).toggleClass("active");
             if ($(this).text() === 'Subscribe') {
-                sub.subscribe(eventName);
+                sub.subscribe(deviceType, eventName);
                 $(this).text('Unsubscribe');
             } else {
                 $(this).text('Subscribe');
-                sub.unsubscribe(eventName);
+                sub.unsubscribe(deviceType, eventName);
             }
 
 

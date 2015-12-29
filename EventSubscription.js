@@ -5,13 +5,15 @@ class Subscription {
     }
     // TODO: topic specification
 
-    subscribe(eventName) {
+    subscribe(deviceId, eventName) {
         var self = this;
         var options = {
             timeout: 3,
             onSuccess: function (message) {
                 console.log("mqtt subscribe to event " + eventName);
-                self.client2.subscribe('+/+/+/Temperature IR Bricklet/qC1/events/' + eventName);
+                var topic = '+/+/+/+/' + deviceId + '/events/' + eventName;
+                console.log(topic);
+                self.client2.subscribe(topic);
             },
             onFailure: function (message) {
                 console.log("Connection failed: " + message.errorMessage);
@@ -26,14 +28,13 @@ class Subscription {
             ($('#' + eventName)).val(message.payloadString);
         };
 
-
-        console.log('mqtt connecting to event: ' + this.eventName + ' ...');
+        console.log('mqtt connecting ...');
         this.client2.connect(options);
 
     }
 
-    unsubscribe(eventName) {
-        this.client2.unsubscribe('+/+/+/Temperature IR Bricklet/qC1/events/' + eventName);
+    unsubscribe(deviceId, eventName) {
+        this.client2.unsubscribe('+/+/+/+/' + deviceId + '/events/' + eventName);
         this.client2.disconnect();
     }
 }
