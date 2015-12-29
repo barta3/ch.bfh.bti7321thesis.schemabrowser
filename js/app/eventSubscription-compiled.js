@@ -10,7 +10,6 @@ var Subscription = (function () {
 
         this.client2 = new Paho.MQTT.Client(host, port, "eventSubscr_" + parseInt(Math.random() * 100, 10));
     }
-    // TODO: topic specification
 
     _createClass(Subscription, [{
         key: "subscribe",
@@ -50,4 +49,4 @@ var Subscription = (function () {
     return Subscription;
 })();
 
-//# sourceMappingURL=EventSubscription-compiled.js.map
+//# sourceMappingURL=eventSubscription-compiled.js.map

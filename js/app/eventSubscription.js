@@ -3,8 +3,6 @@ class Subscription {
     constructor() {
         this.client2 = new Paho.MQTT.Client(host, port, "eventSubscr_" + parseInt(Math.random() * 100, 10));
     }
-    // TODO: topic specification
-
     subscribe(eventTopic) {
         var evtId =  $.md5(eventTopic);
         var self = this;

@@ -18,8 +18,10 @@
 
 
     <script src="config.js" type="text/javascript"></script>
-    <!--<script src="EventSubscription.js" type="text/javascript"></script>-->
-    <script src="js/app/EventSubscription-compiled.js" type="text/javascript"></script>
+    <!--<script src="eventSubscription.js" type="text/javascript"></script>-->
+    <script src="js/app/eventSubscription-compiled.js" type="text/javascript"></script>
+    <script src="js/app/commandPublishing-compiled.js" type="text/javascript"></script>
+
 
 </head>
 <body>
@@ -154,7 +156,7 @@
 
         $('#doc').append('<h2>Commands</h2>');
         json.commandDescription.commands.forEach(function (cmd) {
-            $('#doc').append(renderCmd(cmd)).append('<br>');
+            $('#doc').append(renderCmd(cmd, deviceTopic)).append('<br>');
         });
         evtHandler();
 
@@ -168,40 +170,49 @@
     }
 
 
-    function renderCmd(cmd) {
-        //console.log(cmd);
+    function renderCmd(cmd, deviceTopic) {
+        var cmdTopic = deviceTopic + '/commands/' + cmd.name;
+
         var res = '<strong>' + cmd.name + '</strong> <br>';
 
         res += 'Linked state: ' + cmd.linkedState + '<br>';
 
         $.each(cmd.params, function (key, value) {
             //console.log(value);
-            res += key + '<br>';
+            res += 'Parameter: ' + key + '<br>';
             //console.log(value);
             if (value.hasOwnProperty('min')) {
                 res += renderRange(value);
             } else {
                 res += renderPresets(value);
             }
+
+            var cmdId = $.md5(cmdTopic);
+
+            res += 'Topic: ' + cmdTopic;
+            res += '<form class="form-inline">';
+            res += '    <div class="form-group">';
+            res += '        <input id="' + cmdId + '"type="text" class="form-control">';
+            res += '        <button data-id="' + cmdTopic + '" data-topic="' + cmdTopic + '" class="btn btn-default cmd" type="button">Send</button>';
+            res += '    </div>';
+            res += '</form>';
         });
 
         return res + '<br>';
     }
 
     function renderEvent(event, deviceTopic) {
-        //console.log('Event: ' + event.name);
         var eventName = event.name;
+        var eventTopic = deviceTopic + '/events/' + event.name;
+        var evtId = $.md5(eventTopic);
+
         var res = '<strong>' + eventName + '</strong> <br>';
         res += event.desc + '<br>';
-        var eventTopic = deviceTopic + '/events/' + event.name;
-        res += 'Topic: ' + eventTopic + '<br>';
         res += renderRange(event.range);
-
         res += '<form class="form-inline">';
         res += '    <div class="form-group">';
-        var evtId = $.md5(eventTopic);
-        console.log(evtId);
-        res += '        <button data-id="' + evtId + '" data-topic="' + eventTopic + '" class="btn btn-default evt" type="button">Subscribe</button>';
+        res += 'Topic: ' + eventTopic + '<br>'; // TODO: display in readonly input field
+        res += '        <button data-topic="' + eventTopic + '" class="btn btn-default evt" type="button">Subscribe</button>';
         res += '        <input id="' + evtId + '"type="text" class="form-control">';
         res += '    </div>';
         res += '</form>';
@@ -261,6 +272,22 @@
                 $(this).text('Subscribe');
                 sub.unsubscribe(eventTopic);
             }
+
+
+        });
+
+        $('.cmd').click(function () {
+
+            var cmdTopic = $(this).data('topic');
+
+            var value = $('#'+ $.md5(cmdTopic)).val();
+            console.log(value);
+            console.log(cmdTopic);
+
+            var pub = new Publisher();
+            pub.publish(value, cmdTopic);
+
+
 
 
         });
