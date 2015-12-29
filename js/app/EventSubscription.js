@@ -5,15 +5,14 @@ class Subscription {
     }
     // TODO: topic specification
 
-    subscribe(deviceId, eventName) {
+    subscribe(eventTopic) {
+        var evtId =  $.md5(eventTopic);
         var self = this;
         var options = {
             timeout: 3,
             onSuccess: function (message) {
-                console.log("mqtt subscribe to event " + eventName);
-                var topic = '+/+/+/+/' + deviceId + '/events/' + eventName;
-                console.log(topic);
-                self.client2.subscribe(topic);
+                console.log("mqtt subscribe to event " + eventTopic);
+                self.client2.subscribe(eventTopic);
             },
             onFailure: function (message) {
                 console.log("Connection failed: " + message.errorMessage);
@@ -25,16 +24,15 @@ class Subscription {
         };
         this.client2.onMessageArrived = function (message) {
             console.log(message.destinationName, ' -- ', message.payloadString);
-            ($('#' + eventName)).val(message.payloadString);
+            ($('#' +evtId)).val(message.payloadString);
         };
 
         console.log('mqtt connecting ...');
         this.client2.connect(options);
-
     }
 
-    unsubscribe(deviceId, eventName) {
-        this.client2.unsubscribe('+/+/+/+/' + deviceId + '/events/' + eventName);
+    unsubscribe(eventTopic) {
+        this.client2.unsubscribe(eventTopic);
         this.client2.disconnect();
     }
 }

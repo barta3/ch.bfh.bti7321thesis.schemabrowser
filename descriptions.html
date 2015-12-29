@@ -2,23 +2,24 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
-    <script type="text/javascript" src="mqttws31.js"></script>
-    <script type="text/javascript" src="jquery-2.1.4.min.js"></script>
+    <script type="text/javascript" src="js/lib/paho/mqttws31.js"></script>
+    <script type="text/javascript" src="js/lib/jquery/jquery-2.1.4.min.js"></script>
 
     <!-- Latest compiled and minified CSS -->
-    <link rel="stylesheet" href="bootstrap-3.3.6-dist/css/bootstrap.min.css">
-    <script src="bootstrap-3.3.6-dist/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="js/lib/bootstrap-3.3.6-dist/css/bootstrap.min.css">
+    <script src="js/lib/bootstrap-3.3.6-dist/js/bootstrap.min.js"></script>
 
-    <link rel="stylesheet" type="text/css" href="//cdn.datatables.net/1.10.10/css/jquery.dataTables.css">
+    <script src="js/lib/jquery/jquery.md5.js"></script>
+
 
     <!-- esprima required only for !!js/function -->
     <!--<script src="https://cdn.rawgit.com/jquery/esprima/2.7.1/esprima.js"></script>-->
-    <script src="js-yaml/js-yaml.js"></script>
+    <script src="js/lib/js-yaml/js-yaml.js"></script>
 
 
     <script src="config.js" type="text/javascript"></script>
     <!--<script src="EventSubscription.js" type="text/javascript"></script>-->
-    <script src="EventSubscription-compiled.js" type="text/javascript"></script>
+    <script src="js/app/EventSubscription-compiled.js" type="text/javascript"></script>
 
 </head>
 <body>
@@ -122,13 +123,18 @@
 
     }
 
-    function deviceClick(fulltopic) {
+    function deviceClick(schemaTopic) {
         console.log('table click');
-        console.log(fulltopic);
-        var devId = fulltopic.split('/')[4];
-        $('#txt').val(schemas[fulltopic]);
+        console.log(schemaTopic);
+        var devId = schemaTopic.split('/')[4];
 
-        var json = jsyaml.load(schemas[fulltopic]);
+
+        var deviceTopic = schemaTopic.split('/').slice(0, 5).join('/');
+        console.log(deviceTopic);
+
+        $('#txt').val(schemas[schemaTopic]);
+
+        var json = jsyaml.load(schemas[schemaTopic]);
 ////    var json = JSON.parse(schemas[this.id]);
 
         $('#doc').text('');
@@ -143,7 +149,7 @@
 
         $('#doc').append('<h2>Events</h2>');
         json.eventDescription.events.forEach(function (event) {
-            $('#doc').append(renderEvent(event, devId)).append('<br>');
+            $('#doc').append(renderEvent(event, deviceTopic)).append('<br>');
         });
 
         $('#doc').append('<h2>Commands</h2>');
@@ -182,17 +188,21 @@
         return res + '<br>';
     }
 
-    function renderEvent(event, devId) {
+    function renderEvent(event, deviceTopic) {
         //console.log('Event: ' + event.name);
         var eventName = event.name;
         var res = '<strong>' + eventName + '</strong> <br>';
         res += event.desc + '<br>';
+        var eventTopic = deviceTopic + '/events/' + event.name;
+        res += 'Topic: ' + eventTopic + '<br>';
         res += renderRange(event.range);
 
         res += '<form class="form-inline">';
         res += '    <div class="form-group">';
-        res += '        <button data-id="' + eventName + '" data-device="' + devId + '" class="btn btn-default evt" type="button">Subscribe</button>';
-        res += '        <input id="' + eventName + '"type="text" class="form-control">';
+        var evtId = $.md5(eventTopic);
+        console.log(evtId);
+        res += '        <button data-id="' + evtId + '" data-topic="' + eventTopic + '" class="btn btn-default evt" type="button">Subscribe</button>';
+        res += '        <input id="' + evtId + '"type="text" class="form-control">';
         res += '    </div>';
         res += '</form>';
 
@@ -228,15 +238,15 @@
 
     function evtHandler() {
         $('.evt').click(function () {
-            var eventName = $(this).data('id');
-            var deviceType = $(this).data('device');
+            //var eventId = $(this).data('id');
+            var eventTopic = $(this).data('topic');
 
             var sub;
-            if (!(eventName in subscriptions)) {
+            if (!(eventTopic in subscriptions)) {
                 sub = new Subscription();
-                subscriptions[eventName] = sub;
+                subscriptions[eventTopic] = sub;
             } else {
-                sub = subscriptions[eventName];
+                sub = subscriptions[eventTopic];
             }
 
             // TODO: topic übergeben
@@ -245,11 +255,11 @@
             //console.log($(this).text());
             $(this).toggleClass("active");
             if ($(this).text() === 'Subscribe') {
-                sub.subscribe(deviceType, eventName);
+                sub.subscribe(eventTopic);
                 $(this).text('Unsubscribe');
             } else {
                 $(this).text('Subscribe');
-                sub.unsubscribe(deviceType, eventName);
+                sub.unsubscribe(eventTopic);
             }
 
 
